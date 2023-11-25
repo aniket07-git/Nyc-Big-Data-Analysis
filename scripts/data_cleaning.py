@@ -21,12 +21,12 @@ df_cleaned = df_cleaned.withColumnRenamed("Shape_Leng", "Length") \
 # Type Conversion
 df_cleaned = df_cleaned.withColumn("OBJECTID", col("OBJECTID").cast(IntegerType())) \
                        .withColumn("LocationID", col("LocationID").cast(IntegerType())) \
-                       .withColumn("Perimeter", col("Perimeter").cast(DoubleType())) \
+                       .withColumn("Length", col("Length").cast(DoubleType())) \
                        .withColumn("Area", col("Area").cast(DoubleType()))
 
 # Fill missing values with defaults
 default_values = {
-    "Perimeter": 0.0,
+    "Length": 0.0,
     "Area": 0.0,
     "Geometry": "Unknown",
     "zone": "Unknown",
@@ -40,11 +40,8 @@ df_cleaned = df_cleaned.fillna(default_values)
 output_path = "resources/data/cleaned/taxi_zones.csv"
 # Check if the output path already exists
 fs = spark.sparkContext._jvm.org.apache.hadoop.fs.FileSystem.get(spark.sparkContext._jsc.hadoopConfiguration())
-if not fs.exists(spark.sparkContext._jvm.org.apache.hadoop.fs.Path(output_path)):
-    # Coalesce to a single partition and write the data
-    df_cleaned.coalesce(1).write.csv(output_path, header=True, mode="overwrite")
-else:
-    print("Output path already exists, not writing the data.")
+# Coalesce to a single partition and write the data
+df_cleaned.coalesce(1).write.csv(output_path, header=True, mode="overwrite")
 
 # Stop the Spark session
 spark.stop()
