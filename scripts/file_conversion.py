@@ -7,7 +7,7 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Load the Parquet file into a DataFrame
-parquetFile = spark.read.parquet("resources/data/raw/fhv_tripdata_2023-01.parquet")
+parquetFile = spark.read.parquet("resources/data/raw/fhvhv_tripdata_2023-01.parquet")
 
 # Coalesce to a single partition
 parquetFile = parquetFile.coalesce(1)
