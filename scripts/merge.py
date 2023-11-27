@@ -21,6 +21,7 @@ for column in ["OBJECTID", "LocationID", "Length", "Geometry", "Area", "zone", "
 # Drop redundant column 'LocationID' from df2
 df1 = df1.drop("PU_LocationID")
 df1 = df1.drop("PU_OBJECTID")
+df1 = df1.drop("PU_Geometry")
 
 # Second Join: Join df1 with df2 on DOLocationID
 df1 = df1.join(df2_alias, df1["DOLocationID"] == df2_alias["LocationID"], "left")
@@ -32,12 +33,13 @@ for column in ["OBJECTID", "LocationID", "Length", "Geometry", "Area", "zone", "
 # Drop redundant column 'LocationID' from df2
 df1 = df1.drop("DO_LocationID")
 df1 = df1.drop("DO_OBJECTID")
+df1 = df1.drop("DO_Geometry")
 
 df1.show()
 
 # Write the result to a CSV file
 merged_source_dir = "resources/data/merged"
-df1.write.csv(merged_source_dir, header=True, mode="overwrite")
+df1.coalesce(1).write.csv(merged_source_dir, header=True, mode="overwrite")
 # Rename files
 merged_new_name = "merged_data.csv"
 rename_spark_output_csv(merged_source_dir, merged_new_name)
