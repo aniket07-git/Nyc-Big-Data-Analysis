@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from file_rename import rename_spark_output_csv
+from start_hdfs_services import stop_and_start_hadoop_services
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("MergeCSV").getOrCreate()
@@ -35,14 +35,15 @@ df1 = df1.drop("DO_LocationID")
 df1 = df1.drop("DO_OBJECTID")
 df1 = df1.drop("DO_Geometry")
 
-df1.show()
+# Output HDFS Path
+hdfs_output_dir = "hdfs://localhost:9000/tmp/hadoop-yuvrajpatadia/dfs/data"
+hdfs_output_file = hdfs_output_dir + "/merged.csv"
 
-# Write the result to a CSV file
-merged_source_dir = "resources/data/merged"
-df1.coalesce(1).write.csv(merged_source_dir, header=True, mode="overwrite")
-# Rename files
-merged_new_name = "merged_data.csv"
-rename_spark_output_csv(merged_source_dir, merged_new_name)
+# Create a new directory in HDFS
+# subprocess.run(["hdfs", "dfs", "-mkdir", "-p", hdfs_output_dir])
+stop_and_start_hadoop_services()
+# Write the merged DataFrame to the new HDFS directory
+df1.coalesce(1).write.csv(hdfs_output_file, header=True, mode="overwrite")
 
 # Stop the Spark session
 spark.stop()
