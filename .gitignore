@@ -1,3 +1,6 @@
 ./DS_STORE
 _SUCCESS
 ._SUCCESS.crc
+*.csv
+*.parquet
+*.csv.crc
