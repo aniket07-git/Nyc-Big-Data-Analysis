@@ -4,6 +4,7 @@ from pyspark.sql.functions import col
 from pyspark.sql.functions import when
 from pyspark.sql.functions import to_timestamp, unix_timestamp
 from file_rename import rename_spark_output_csv
+import os
 
 # Initialize a Spark session
 spark = SparkSession.builder.appName("TaxiZonesDataCleaning").getOrCreate()
@@ -74,3 +75,7 @@ fhvhvDf_new_name = "cleaned_fhvhv.csv"
 rename_spark_output_csv(fhvhvDf_source_dir, fhvhvDf_new_name)
 # Stop the Spark session
 spark.stop()
+# Delete the intermediate 'converted.csv' file if exists
+file_path = 'resources/data/converted/converted_fhvhv.csv'  # Replace with the actual path of 'converted.csv'
+if os.path.exists(file_path):
+    os.remove(file_path)
