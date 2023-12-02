@@ -1,81 +1,72 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.types import IntegerType, DoubleType, StringType    
-from pyspark.sql.functions import col
-from pyspark.sql.functions import when
-from pyspark.sql.functions import to_timestamp, unix_timestamp
 from file_rename import rename_spark_output_csv
-import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import unix_timestamp, round
+from pyspark.sql import DataFrame
+import logging
 
-# Initialize a Spark session
-spark = SparkSession.builder.appName("TaxiZonesDataCleaning").getOrCreate()
+# Initialize logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
 
-# Load the data
-taxiZoneDf = spark.read.csv("resources/data/raw/taxi_zones.csv", header=True, inferSchema=True)
-fhvhvDf = spark.read.csv("resources/data/converted/converted_fhvhv.csv", header=True, inferSchema=True)
+def read_csv_to_df(spark: SparkSession, path: str, header: bool = True, infer_schema: bool = True) -> DataFrame:
+    try:
+        return spark.read.csv(path, header=header, inferSchema=infer_schema)
+    except Exception as e:
+        logger.error(f"Failed to read CSV at path {path}: {e}")
+        raise
 
-# Handling Missing Values
-for column in fhvhvDf.columns:
-    if isinstance(fhvhvDf.schema[column].dataType, StringType):
-        fhvhvDf = fhvhvDf.withColumn(column, when(col(column).isNull(), "N/A").otherwise(col(column)))
-    else:
-        fhvhvDf = fhvhvDf.withColumn(column, when(col(column).isNull(), None).otherwise(col(column)))
+def calculate_duration(df: DataFrame, pickup_col: str, dropoff_col: str) -> DataFrame:
+    return df.withColumn("duration", round((unix_timestamp(dropoff_col) - unix_timestamp(pickup_col)) / 60, 2))
 
-# Date and Time Conversion
-fhvhvDf = fhvhvDf.withColumn("pickup_datetime", to_timestamp("pickup_datetime"))
-fhvhvDf = fhvhvDf.withColumn("dropOff_datetime", to_timestamp("dropOff_datetime"))
+def write_df_to_csv(df: DataFrame, path: str, num_partitions: int = None):
+    try:
+        if num_partitions:
+            df = df.repartition(num_partitions)
+        df.write.csv(path, header=True, mode="overwrite")
+        logger.info(f"Dataframe written to CSV at path {path}")
+    except Exception as e:
+        logger.error(f"Failed to write dataframe to CSV at path {path}: {e}")
+        raise
 
-# Data Validation
-fhvhvDf = fhvhvDf.filter(fhvhvDf.pickup_datetime < fhvhvDf.dropOff_datetime)
+def clean_and_write_taxi_zone_data(spark: SparkSession, input_path: str, output_path: str):
+    taxi_zone_df = read_csv_to_df(spark, input_path)
+    taxi_zone_df = taxi_zone_df.drop('the_geom', 'OBJECTID')
+    write_df_to_csv(taxi_zone_df, output_path, num_partitions=1) # Coalesce is used here to write to a single file for renaming
 
-# Create a new column called duration
-fhvhvDf = fhvhvDf.withColumn("duration", 
-                   (unix_timestamp("dropOff_datetime") - unix_timestamp("pickup_datetime")) / 60)
+def clean_and_write_fhvhv_data(spark: SparkSession, input_path: str, output_path: str):
+    fhvhv_df = read_csv_to_df(spark, input_path)
+    fhvhv_df = calculate_duration(fhvhv_df, "pickup_datetime", "dropOff_datetime")
+    write_df_to_csv(fhvhv_df, output_path, num_partitions=1) # Coalesce is used here to write to a single file for renaming
 
-# Remove duplicate rows if any
-taxiZoneDf_cleaned = taxiZoneDf.dropDuplicates()
+def main():
+    spark = SparkSession.builder.appName("TaxiZonesDataCleaning").getOrCreate()
 
-# Renaming columns for clarity
-taxiZoneDf_cleaned = taxiZoneDf_cleaned.withColumnRenamed("Shape_Leng", "Length") \
-                       .withColumnRenamed("Shape_Area", "Area") \
-                       .withColumnRenamed("the_geom", "Geometry")
+    try:
+        # Define paths
+        taxi_zone_raw_path = "resources/data/raw/taxi_zones.csv"
+        taxi_zone_clean_path = "resources/data/cleaned/cleaned_taxi_zone_dataset"
+        fhvhv_converted_path = "resources/data/converted/converted_fhvhv.csv"
+        fhvhv_clean_path = "resources/data/cleaned/cleaned_highvolume_dataset"
 
-# Type Conversion
-taxiZoneDf_cleaned = taxiZoneDf_cleaned.withColumn("OBJECTID", col("OBJECTID").cast(IntegerType())) \
-                       .withColumn("LocationID", col("LocationID").cast(IntegerType())) \
-                       .withColumn("Length", col("Length").cast(DoubleType())) \
-                       .withColumn("Area", col("Area").cast(DoubleType()))
+        # Clean and write Taxi Zone Data
+        clean_and_write_taxi_zone_data(spark, taxi_zone_raw_path, taxi_zone_clean_path)
 
-# Fill missing values with defaults
-default_values = {
-    "Length": 0.0,
-    "Area": 0.0,
-    "Geometry": "Unknown",
-    "zone": "Unknown",
-    "LocationID": 0,
-    "borough": "Unknown",
-    "OBJECTID": 0
-}
-taxiZoneDf_cleaned = taxiZoneDf_cleaned.fillna(default_values)
+        # Clean and write FHVHV Data
+        clean_and_write_fhvhv_data(spark, fhvhv_converted_path, fhvhv_clean_path)
 
-# Coalesce to a single partition and save the cleaned data to a single CSV file
-taxiZoneCleanPath = "resources/data/cleaned/cleaned_taxi_zone_dataset"
-# Coalesce to a single partition and save the cleaned data to a single CSV file
-fhvhvCleanPath = "resources/data/cleaned/cleaned_highvolume_dataset"
-# Check if the output path already exists
-fs = spark.sparkContext._jvm.org.apache.hadoop.fs.FileSystem.get(spark.sparkContext._jsc.hadoopConfiguration())
-# Coalesce to a single partition and write the data
-taxiZoneDf_cleaned.coalesce(1).write.csv(taxiZoneCleanPath, header=True, mode="overwrite")
-fhvhvDf.coalesce(1).write.csv(fhvhvCleanPath, header=True, mode="overwrite")
-# Rename files
-taxiZoneDf_cleaned_source_dir = "resources/data/cleaned/cleaned_taxi_zone_dataset/"
-taxiZoneDf_cleaned_new_name = "cleaned_taxiZone.csv"
-rename_spark_output_csv(taxiZoneDf_cleaned_source_dir, taxiZoneDf_cleaned_new_name)
-fhvhvDf_source_dir = "resources/data/cleaned/cleaned_highvolume_dataset/"
-fhvhvDf_new_name = "cleaned_fhvhv.csv"
-rename_spark_output_csv(fhvhvDf_source_dir, fhvhvDf_new_name)
-# Stop the Spark session
-spark.stop()
-# Delete the intermediate 'converted.csv' file if exists
-file_path = 'resources/data/converted/converted_fhvhv.csv'  # Replace with the actual path of 'converted.csv'
-if os.path.exists(file_path):
-    os.remove(file_path)
+        # Rename files
+        taxi_zone_cleaned_source_dir = "resources/data/cleaned/cleaned_taxi_zone_dataset/"
+        taxi_zone_cleaned_new_name = "cleaned_taxiZone.csv"
+        rename_spark_output_csv(taxi_zone_cleaned_source_dir, taxi_zone_cleaned_new_name)
+        fhvhv_source_dir = "resources/data/cleaned/cleaned_highvolume_dataset/"
+        fhvhv_new_name = "cleaned_fhvhv.csv"
+        rename_spark_output_csv(fhvhv_source_dir, fhvhv_new_name)
+
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        raise e
+    finally:
+        spark.stop()
+
+if __name__ == "__main__":
+    main()
