@@ -6,3 +6,4 @@ _SUCCESS
 *.csv.crc
 __MACOSX
 .ipynb_checkpoints
+.env

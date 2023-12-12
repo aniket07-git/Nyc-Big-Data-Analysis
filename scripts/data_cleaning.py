@@ -1,7 +1,7 @@
-from file_rename import rename_spark_output_csv
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import unix_timestamp, round
 from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
 import logging
 
 # Initialize logging
@@ -31,10 +31,14 @@ def write_df_to_csv(df: DataFrame, path: str, num_partitions: int = None):
 def clean_and_write_taxi_zone_data(spark: SparkSession, input_path: str, output_path: str):
     taxi_zone_df = read_csv_to_df(spark, input_path)
     taxi_zone_df = taxi_zone_df.drop('the_geom', 'OBJECTID')
-    write_df_to_csv(taxi_zone_df, output_path, num_partitions=1) # Coalesce is used here to write to a single file for renaming
+    write_df_to_csv(taxi_zone_df, output_path, num_partitions=16) # Coalesce is used here to write to a single file for renaming
 
 def clean_and_write_fhvhv_data(spark: SparkSession, input_path: str, output_path: str):
     fhvhv_df = read_csv_to_df(spark, input_path)
+    # Remove rows based on the conditions
+    fhvhv_df = fhvhv_df.filter((col("trip_time") > 0) & 
+                                (col("base_passenger_fare") > 0) & 
+                                (col("trip_miles") > 0))
     fhvhv_df = calculate_duration(fhvhv_df, "pickup_datetime", "dropOff_datetime")
     write_df_to_csv(fhvhv_df, output_path, num_partitions=1) # Coalesce is used here to write to a single file for renaming
 
@@ -45,7 +49,7 @@ def main():
         # Define paths
         taxi_zone_raw_path = "resources/data/raw/taxi_zones.csv"
         taxi_zone_clean_path = "resources/data/cleaned/cleaned_taxi_zone_dataset"
-        fhvhv_converted_path = "resources/data/converted/converted_fhvhv.csv"
+        fhvhv_converted_path = "resources/data/converted/*.csv"
         fhvhv_clean_path = "resources/data/cleaned/cleaned_highvolume_dataset"
 
         # Clean and write Taxi Zone Data
@@ -53,14 +57,6 @@ def main():
 
         # Clean and write FHVHV Data
         clean_and_write_fhvhv_data(spark, fhvhv_converted_path, fhvhv_clean_path)
-
-        # Rename files
-        taxi_zone_cleaned_source_dir = "resources/data/cleaned/cleaned_taxi_zone_dataset/"
-        taxi_zone_cleaned_new_name = "cleaned_taxiZone.csv"
-        fhvhv_source_dir = "resources/data/cleaned/cleaned_highvolume_dataset/"
-        fhvhv_new_name = "cleaned_fhvhv.csv"
-        rename_spark_output_csv(taxi_zone_cleaned_source_dir, taxi_zone_cleaned_new_name)
-        rename_spark_output_csv(fhvhv_source_dir, fhvhv_new_name)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")

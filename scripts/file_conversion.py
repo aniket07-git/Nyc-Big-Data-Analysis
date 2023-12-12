@@ -1,6 +1,5 @@
 import logging
 from pyspark.sql import SparkSession
-from file_rename import rename_spark_output_csv
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -17,7 +16,8 @@ def read_parquet_file(spark, file_path):
 def write_to_csv(df, target_dir):
     try:
         # Write in parallel, repartition if necessary
-        df.coalesce(1).write.option("header", "true").mode("overwrite").csv(target_dir)
+        df = df.repartition(16)
+        df.write.option("header", "true").mode("overwrite").csv(target_dir)
     except Exception as e:
         logger.error(f"Error writing CSV file: {e}")
         raise
@@ -28,13 +28,8 @@ def main():
     try:
         parquet_file_path = "resources/data/raw/fhvhv.parquet"
         output_dir = "resources/data/converted/"
-        
         df = read_parquet_file(spark, parquet_file_path)
-        
         write_to_csv(df, output_dir)
-        
-        new_name = "converted_fhvhv.csv"
-        rename_spark_output_csv(output_dir, new_name)
         
     except Exception as e:
         logger.error(f"Job failed: {e}")

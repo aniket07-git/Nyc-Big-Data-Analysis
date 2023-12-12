@@ -1,6 +1,10 @@
 import subprocess
 import logging
 import sys
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -17,11 +21,11 @@ def run_command(command):
 
 def stop_and_start_hadoop_services():
     # Stop existing Hadoop services
-    if not run_command("/opt/homebrew/Cellar/hadoop/3.3.6/sbin/stop-all.sh"):
+    if not run_command(os.getenv('STOP_SERVICES')):
         logger.warning("Failed to stop existing Hadoop services. Attempting to start services anyway.")
     
     # Start all Hadoop services
-    if not run_command("/opt/homebrew/Cellar/hadoop/3.3.6/sbin/start-all.sh"):
+    if not run_command(os.getenv('START_SERVICES')):
         logger.error("Failed to start Hadoop services.")
         return False
 

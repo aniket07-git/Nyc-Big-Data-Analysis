@@ -24,12 +24,18 @@ def run_script(script_name):
 def start_jupyter():
     try:
         # Start Jupyter notebook using python3
-        subprocess.run(['python3', '-m', 'notebook'], check=True)
+        subprocess.run(['python', '-m', 'notebook'], check=True)
         logger.info("Jupyter notebook started successfully.")
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        # Log error if Jupyter fails to start
-        logger.error(f"Failed to start Jupyter notebook: {e}")
-        raise
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.warning(f"Failed to run Jupyter notebook with python, trying with python3...")
+        try:
+            # If it fails, try running the script with 'python3'
+            subprocess.run(['python3', '-m', 'notebook'], check=True)
+            logger.info("Jupyter notebook started successfully.")
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            # If it still fails, log the error
+            logger.error(f"Failed to run Jupyter notebook with both python and python3: {e}")
+            raise
 
 def main():
     scripts_to_run = [

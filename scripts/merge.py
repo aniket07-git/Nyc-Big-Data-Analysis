@@ -1,28 +1,35 @@
+from dotenv import load_dotenv
 import os
+import glob
 from start_hdfs_services import stop_and_start_hadoop_services
 import logging
 from pyspark.sql import SparkSession
-import subprocess
+
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def delete_hdfs_dir(hdfs_dir):
+def delete_csv_files_in_directory(directory_path):
     try:
-        subprocess.run(['hdfs', 'dfs', '-rm', '-r', hdfs_dir], check=True)
-        logger.info(f"Successfully deleted all files in {hdfs_dir}")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to delete files in {hdfs_dir}: {e}")
-        raise
+        # Find all .csv files in the directory
+        csv_files = glob.glob(os.path.join(directory_path, '*.csv'))
+        
+        # Delete each found .csv file
+        for file in csv_files:
+            os.remove(file)
+            logger.info(f"Deleted file: {file}")
 
+    except Exception as e:
+        logger.error(f"Failed to delete .csv files in {directory_path}: {e}")
 def main():
     spark = SparkSession.builder.appName("MergeCSV").getOrCreate()
 
     try:
         # Reading the data into DataFrames with appropriate error handling
-        df1_path = "resources/data/cleaned/cleaned_highvolume_dataset/cleaned_fhvhv.csv"
-        df2_path = "resources/data/cleaned/cleaned_taxi_zone_dataset/cleaned_taxiZone.csv"
+        df1_path = "resources/data/cleaned/cleaned_highvolume_dataset/*.csv"
+        df2_path = "resources/data/cleaned/cleaned_taxi_zone_dataset/*.csv"
         df1 = spark.read.csv(df1_path, header=True, inferSchema=True)
         df2 = spark.read.csv(df2_path, header=True, inferSchema=True)
 
@@ -57,31 +64,27 @@ def main():
         df1 = df1.drop("DO_LocationID")
 
         # Output HDFS path
-        hdfs_output_dir = "hdfs://localhost:9000/tmp/hadoop-yuvrajpatadia/dfs/data"
+        hdfs_output_dir = os.getenv('HDFS_OUTPUT_DIR')
         hdfs_output_file = f"{hdfs_output_dir}/merged.parquet"
 
         # start HDFS service
         stop_and_start_hadoop_services()
 
         # Write the merged DataFrame to HDFS
-        df1.coalesce(1).write.parquet(hdfs_output_file, mode="overwrite")
+        df1.repartition(16)
+        df1.write.parquet(hdfs_output_dir, mode="overwrite")
         logger.info(f"Merged data written to {hdfs_output_file}")
 
-        # Delete the intermediate 'converted.csv' file if exists
-        # File paths to check and delete if they exist
-        file_paths = [
-            'resources/data/converted/converted_fhvhv.csv',
-            'resources/data/cleaned/cleaned_taxi_zone_dataset/cleaned_taxiZone.csv',
-            'resources/data/cleaned/cleaned_highvolume_dataset/cleaned_fhvhv.csv'
+        # Directories to check and delete .csv files
+        directories = [
+            'resources/data/converted',
+            'resources/data/cleaned/cleaned_taxi_zone_dataset',
+            'resources/data/cleaned/cleaned_highvolume_dataset'
         ]
 
-        # Function to delete a file if it exists
-        def delete_file_if_exists(file_path):
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
-        # Deleting the files
-        [delete_file_if_exists(path) for path in file_paths]
+        # Deleting .csv files in each directory
+        for directory in directories:
+            delete_csv_files_in_directory(directory)
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)
