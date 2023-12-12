@@ -60,9 +60,6 @@ def main():
         hdfs_output_dir = "hdfs://localhost:9000/tmp/hadoop-yuvrajpatadia/dfs/data"
         hdfs_output_file = f"{hdfs_output_dir}/merged.parquet"
 
-        # Delete existing HDFS directory
-        # delete_hdfs_dir(hdfs_output_dir)
-
         # start HDFS service
         stop_and_start_hadoop_services()
 
