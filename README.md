@@ -14,12 +14,31 @@ Before running this project, ensure that you have the following installed:
 - Hadoop
 - Jupyter Notebooks
 
+## Apache Spark Installation - V3.5.0:
+
+Install Apache Spark into your system:
+
+Refer video tutorial below :
+
+https://www.youtube.com/watch?v=LcRxQjTdD1o
+
 ### Installation
 
 To install Python, Pyspark, and dotenv, use the command below:
 
 ```bash
 pip3 install pyspark python-dotenv
+```
+Install Jupyter Notebooks
+
+```bash
+pip3 install notebook
+```
+
+This command will install Jupyter Notebook along with its dependencies. Once the installation is complete, you can launch Jupyter Notebook by running:
+
+```bash
+jupyter notebook
 ```
 
 Clone the repository or download the source code. Install the required Python packages as stated above. Set up Apache Spark and Hadoop on your local machine or a cluster.
@@ -58,6 +77,19 @@ The project consists of multiple scripts, each serving a different purpose:
 - **Hadoop Service Management**: Manage Hadoop services, including starting and stopping services as needed.
 - **Utility Scripts**: Helper scripts that perform tasks like deleting files, running external commands, etc.
 
+Before running the main application esnure you have started Pyspark:
+
+You can run Pyspark manually through your terminal:
+
+Navigate to the folder where you have installed Pyspark:
+
+Run:
+
+```bash
+bin/pyspark
+```
+Example : yuvrajpatadia@Yuvrajs-MacBook-Air spark-3.5.0-bin-hadoop3 
+
 To run the main application, navigate to the root folder of the project and run:
 
 ```bash
@@ -66,6 +98,8 @@ python3 scripts/main.py
 ```
 
 This command will launch the entire project, start all Hadoop clusters, and perform tasks like read, clean, merge, etc.
+
+
 
 ## Workflow 
 
