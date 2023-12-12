@@ -21,6 +21,16 @@ def run_script(script_name):
             logger.error(f"Failed to run {script_name} with both python and python3: {e}")
             raise
 
+def start_jupyter():
+    try:
+        # Start Jupyter notebook using python3
+        subprocess.run(['python3', '-m', 'notebook'], check=True)
+        logger.info("Jupyter notebook started successfully.")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        # Log error if Jupyter fails to start
+        logger.error(f"Failed to start Jupyter notebook: {e}")
+        raise
+
 def main():
     scripts_to_run = [
         'scripts/file_conversion.py',
@@ -28,8 +38,12 @@ def main():
         'scripts/merge.py'
     ]
 
+    # Run the scripts
     for script in scripts_to_run:
         run_script(script)
+
+    # Start Jupyter notebook
+    start_jupyter()
 
 if __name__ == "__main__":
     main()

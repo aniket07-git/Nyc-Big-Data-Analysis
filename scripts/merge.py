@@ -1,3 +1,4 @@
+import os
 from start_hdfs_services import stop_and_start_hadoop_services
 import logging
 from pyspark.sql import SparkSession
@@ -57,17 +58,33 @@ def main():
 
         # Output HDFS path
         hdfs_output_dir = "hdfs://localhost:9000/tmp/hadoop-yuvrajpatadia/dfs/data"
-        hdfs_output_file = f"{hdfs_output_dir}/merged.csv"
+        hdfs_output_file = f"{hdfs_output_dir}/merged.parquet"
 
         # Delete existing HDFS directory
-        delete_hdfs_dir(hdfs_output_dir)
+        # delete_hdfs_dir(hdfs_output_dir)
 
         # start HDFS service
         stop_and_start_hadoop_services()
 
         # Write the merged DataFrame to HDFS
-        df1.coalesce(1).write.csv(hdfs_output_file, header=True, mode="overwrite")
+        df1.coalesce(1).write.parquet(hdfs_output_file, mode="overwrite")
         logger.info(f"Merged data written to {hdfs_output_file}")
+
+        # Delete the intermediate 'converted.csv' file if exists
+        # File paths to check and delete if they exist
+        file_paths = [
+            'resources/data/converted/converted_fhvhv.csv',
+            'resources/data/cleaned/cleaned_taxi_zone_dataset/cleaned_taxiZone.csv',
+            'resources/data/cleaned/cleaned_highvolume_dataset/cleaned_fhvhv.csv'
+        ]
+
+        # Function to delete a file if it exists
+        def delete_file_if_exists(file_path):
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        # Deleting the files
+        [delete_file_if_exists(path) for path in file_paths]
 
     except Exception as e:
         logger.error(f"An error occurred: {e}", exc_info=True)

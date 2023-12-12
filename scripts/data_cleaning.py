@@ -57,9 +57,9 @@ def main():
         # Rename files
         taxi_zone_cleaned_source_dir = "resources/data/cleaned/cleaned_taxi_zone_dataset/"
         taxi_zone_cleaned_new_name = "cleaned_taxiZone.csv"
-        rename_spark_output_csv(taxi_zone_cleaned_source_dir, taxi_zone_cleaned_new_name)
         fhvhv_source_dir = "resources/data/cleaned/cleaned_highvolume_dataset/"
         fhvhv_new_name = "cleaned_fhvhv.csv"
+        rename_spark_output_csv(taxi_zone_cleaned_source_dir, taxi_zone_cleaned_new_name)
         rename_spark_output_csv(fhvhv_source_dir, fhvhv_new_name)
 
     except Exception as e:
