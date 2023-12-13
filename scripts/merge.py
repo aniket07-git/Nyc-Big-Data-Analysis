@@ -1,3 +1,8 @@
+"""
+Author Contribution:
+- Yuvraj Ishwarbhai Patadia
+"""
+
 from dotenv import load_dotenv
 import os
 import glob
