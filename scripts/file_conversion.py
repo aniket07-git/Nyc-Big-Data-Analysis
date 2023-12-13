@@ -29,12 +29,16 @@ def main():
         parquet_file_path = "resources/data/raw/fhvhv.parquet"
         output_dir = "resources/data/converted/"
         df = read_parquet_file(spark, parquet_file_path)
+        # Write the DataFrame to a CSV file
         write_to_csv(df, output_dir)
         
     except Exception as e:
+        # Log an error if any part of the main process fails
         logger.error(f"Job failed: {e}")
     finally:
+        # Stop the SparkSession to free up resources
         spark.stop()
 
 if __name__ == "__main__":
+    # Run the main function if the script is executed as the main program
     main()
